@@ -1,15 +1,67 @@
 import GPUtil
 import psutil
-from dmidecode import DMIDecode
 import sys, os
 from datetime import datetime
 import re
 import signal
 import subprocess
+import platform
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget, QDialog, QMenu
 from PySide6.QtCore import QTimer, Qt, Signal, QSettings
 from PySide6.QtGui import QAction
+
+if platform.system() == "Linux":
+    from dmidecode import DMIDecode
+
+    class SysInfo:
+        def __init__(self):
+            pass
+        
+        
+        def cpu_temp(self):
+            temp = psutil.sensors_temperatures()
+            dmi = DMIDecode()
+            cpu_temp = temp["k10temp"][0]
+            
+            return cpu_temp.current
+
+
+elif platform.system() == "Windows":
+    import pyRTSS
+
+    class SysInfo:
+        def __init__(self):
+            self.rtss = pyRTSS.RTSS()
+
+
+        def cpu_temp(self):
+            return 0
+
+        def game_fps(self):
+            return None
+        
+
+        def game_name(self):
+            return ""
+    
+
+    """
+    import WinTmp
+    
+    class SysInfo:
+        def __init__(self):
+            pass
+
+
+        def cpu_temp(self):
+            return WinTmp.CPU_Temp()
+    """
+
+else:
+    print(f"ERROR: Unrecognized platform {platform.system()}")
+    exit(-1)
+
 
 def py_uic(name):
     src_dir = os.path.dirname(os.path.realpath(__file__))
@@ -43,6 +95,8 @@ import statsgui
 import settings
 
 def strtobool(s):
+    if s is None:
+        return False
     if isinstance(s, bool):
         return s
     
@@ -274,9 +328,10 @@ class MainWindow(QMainWindow):
         ram_used = round(psutil.virtual_memory().used/1e9, 1)
 
         # cpu
-        dmi = DMIDecode()
-        temp = psutil.sensors_temperatures()
-        cpu_temp = temp["k10temp"][0]
+        sysinfo = SysInfo()
+#        temp = psutil.sensors_temperatures()
+#        dmi = DMIDecode()
+#        cpu_temp = temp["k10temp"][0]
 
         # disk
         disk_total = round(psutil.disk_usage("/").total/1e9, 1)
@@ -298,8 +353,8 @@ class MainWindow(QMainWindow):
             "ram_used_percent": round(100*ram_used/ram_total, 1),
 
             # cpu stats
-            "cpu_name": dmi.cpu_type(),
-            "cpu_temperature": round(cpu_temp.current, 1),
+            "cpu_name": platform.processor(),
+            "cpu_temperature": round(sysinfo.cpu_temp(), 1),
             "cpu_used_percent": round(psutil.cpu_percent(), 1),
             "cpu_frequency": int(psutil.cpu_freq().current),
             "cpu_frequency_max": int(psutil.cpu_freq().max),
@@ -334,15 +389,6 @@ def main():
 
     window.show()
     sys.exit(app.exec())
-
-    return
-
-    dmi = DMIDecode()
-    temp = psutil.sensors_temperatures()
-
-    # print(psutil.sensors_temperatures())
-
-    print(dir(dmi))
 
 
 if __name__ == "__main__":
