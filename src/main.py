@@ -6,10 +6,16 @@ import re
 import signal
 import subprocess
 import platform
+import copy
+import argparse
+from tabulate import tabulate
+import cpuinfo
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QVBoxLayout, QWidget, QDialog, QMenu
 from PySide6.QtCore import QTimer, Qt, Signal, QSettings
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QFont
+
+from dial_display import dial_display
 
 if platform.system() == "Linux":
     from dmidecode import DMIDecode
@@ -33,16 +39,39 @@ elif platform.system() == "Windows":
     class SysInfo:
         def __init__(self):
             self.rtss = pyRTSS.RTSS()
+            self.ts = datetime.now()
+            self.game = None
+
+
+        def update(self):
+            if (datetime.now() - self.ts).seconds < 1:
+                return
+            
+            self.snap = self.rtss.snapshot()
+            self.ts = datetime.now()
+
+            if self.snap.dwLastForegroundAppProcessID != 0:
+                self.game = self.snap.arrApp[self.snap.dwLastForegroundApp]
 
 
         def cpu_temp(self):
             return 0
 
+
         def game_fps(self):
-            return None
+            self.update()
+            if self.game is None:
+                return 0
+            denom = self.game.dwTime1 - self.game.dwTime0
+            if denom == 0:
+                return 0
+            return 1000.0 * self.game.dwFrames / denom
         
 
         def game_name(self):
+            self.update()
+            if self.game is None:
+                return ""
             return ""
     
 
@@ -107,13 +136,13 @@ def strtobool(s):
 
 
 class Option:
-    def __init__(self):
-        self.name = None
-        self.value = None
+    def __init__(self, name, default):
+        self.name = name
+        self.value = default
         self.data = None
         self.changed = False
 
-
+# TODO labels without variables are not scaling
 class Settings(QDialog):
 
     updated = Signal()
@@ -127,8 +156,9 @@ class Settings(QDialog):
         self.ui.button_save.clicked.connect(self.button_save)
 
         self.options = {
-            "display": Option(),
-            "fullscreen": Option(),
+            "display": Option("display", None),
+            "fullscreen": Option("fullscreen", True),
+            "scaling": Option("scaling", 100),
         }
         self.config = QSettings("yuckify", "pystats")
 
@@ -136,6 +166,8 @@ class Settings(QDialog):
         self.ui.display_list.activated.connect(self.opt_display)
         self.ui.fullscreen.stateChanged.connect(self.opt_fullscreen)
         self.ui.settings_select.itemClicked.connect(self.select_page)
+        # self.ui.scaling.textChanged.connect(self.opt_scaling)
+        self.ui.scaling.editingFinished.connect(self.opt_scaling)
 
 
     def init(self, changed = False):
@@ -159,8 +191,14 @@ class Settings(QDialog):
         # fullscreen
         self.options["fullscreen"].changed = changed
         self.options["fullscreen"].value = strtobool(self.config.value("fullscreen"))
-        self.options["fullscreen"].name = "fullscreen"
         self.ui.fullscreen.setChecked(self.options["fullscreen"].value)
+
+        self.options["scaling"].changed = changed
+        try:
+            self.options["scaling"].value = float(self.config.value("scaling"))
+        except:
+            self.options["scaling"].value = 100
+        self.ui.scaling.setText(str(self.options["scaling"].value))
 
 
     def select_page(self, column):
@@ -180,7 +218,6 @@ class Settings(QDialog):
     
     def button_save(self):
         self.updated.emit()
-        print("Saving {}".format(self.config.fileName()))
         for k in self.options:
             self.config.setValue(k, self.options[k].value)
         self.hide()
@@ -201,25 +238,49 @@ class Settings(QDialog):
         opt.name = "fullscreen"
 
 
+    def opt_scaling(self):
+        opt = self.options["scaling"]
+        opt.changed = True
+        try:
+            opt.value = float(self.ui.scaling.text())
+        except:
+            opt.value = 100
+        opt.name = "scaling"
+
+
 class GuiObject:
     def __init__(self, ui):
         self.ui = ui
-        self.format = ui.text()
-        self.keys = re.findall("\$\(([a-zA-Z0-9_]+)\)", self.format)
-        if self.ok():
+        self.keys = []
+        if self.is_label():
+            self.format = ui.text()
+            self.keys = re.findall("\$\(([a-zA-Z0-9_]+)\)", self.format)
+        if self.is_formatted():
             ui.setText("")
+        self.font = ui.font()
 
     
-    def update(self, params):
-        display = self.format
-        for k in self.keys:
-            fmt = f"$({k})"
-            display = display.replace(fmt, str(params[k]))
-        self.ui.setText(display)
+    def update(self, params, settings):
+        if self.is_formatted():
+            display = self.format
+            for k in self.keys:
+                fmt = f"$({k})"
+                display = display.replace(fmt, str(params[k]))
+            self.ui.setText(display)
+        if hasattr(self.ui, "set_values"):
+            self.ui.set_values(params)
+
+        f = QFont(self.font)
+        f.setPointSize(f.pointSize()*(settings.options["scaling"].value/100.0))
+        self.ui.setFont(f)
 
 
-    def ok(self):
+    def is_formatted(self):
         return len(self.keys)
+    
+
+    def is_label(self):
+        return isinstance(self.ui, QLabel)
 
 
 class MainWindow(QMainWindow):
@@ -239,12 +300,12 @@ class MainWindow(QMainWindow):
         # init the objects list
         for obj_name in dir(self.ui):
             obj = getattr(self.ui, obj_name)
-            if not isinstance(obj, QLabel):
+            if not isinstance(obj, QLabel) and not isinstance(obj, dial_display):
                 continue
             
             gui_obj = GuiObject(obj)
-            if not gui_obj.ok():
-                continue
+            # if not gui_obj.ok():
+                # continue
             
             self.label_objs.append(gui_obj)
         
@@ -252,6 +313,7 @@ class MainWindow(QMainWindow):
         self.settings.updated.connect(self.settings_updated)
         self.settings.init(True)
         self.settings_updated()
+        self.cpu_info = cpuinfo.get_cpu_info()
 
 
     def set_fullscreen(self, fs):
@@ -319,7 +381,7 @@ class MainWindow(QMainWindow):
 
     def update_gui(self):
         for obj in self.label_objs:
-            obj.update(self.params)
+            obj.update(self.params, self.settings)
 
 
     def get_params(self):
@@ -341,6 +403,13 @@ class MainWindow(QMainWindow):
         gpus = GPUtil.getGPUs()
         gpu = gpus[0]
 
+        cpu_name = self.cpu_info["brand_raw"]
+        cpu_name = cpu_name.replace(" Processor", "")
+        match = re.findall(" ([0-9]+)-Core", cpu_name)
+        if match:
+            cpu_name = cpu_name.replace(f" {match[0]}-Core", "")
+
+
         self.params = {
             # random stats
             "time": datetime.now().strftime("%I:%M:%S %p"),
@@ -353,7 +422,7 @@ class MainWindow(QMainWindow):
             "ram_used_percent": round(100*ram_used/ram_total, 1),
 
             # cpu stats
-            "cpu_name": platform.processor(),
+            "cpu_name": cpu_name,
             "cpu_temperature": round(sysinfo.cpu_temp(), 1),
             "cpu_used_percent": round(psutil.cpu_percent(), 1),
             "cpu_frequency": int(psutil.cpu_freq().current),
@@ -372,7 +441,13 @@ class MainWindow(QMainWindow):
             "gpu_mem_used": round(gpu.memoryUsed/1e3, 1),
             "gpu_mem_used_percent": round(100*gpu.memoryUsed/gpu.memoryTotal, 1),
             "gpu_temperature": gpu.temperature,
+
+            # game
+            "game_fps": sysinfo.game_fps(),
+            "game_name": sysinfo.game_name(),
         }
+
+        return self.params
 
 
 def sig_handler(signum, frame):
@@ -381,11 +456,22 @@ def sig_handler(signum, frame):
 
 
 def main():
+    parser = argparse.ArgumentParser(description="gui to display system stats")
+    parser.add_argument("-l", "--list", default=False, action="store_true", help="print all available statistics")
+    args = parser.parse_args()
+
     signal.signal(signal.SIGINT, sig_handler)
 
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.get_params()
+    params = window.get_params()
+
+    if args.list:
+        data = []
+        for n in params:
+            data.append([n, params[n]])
+        print(tabulate(data, headers=["Variable", "Value"]))
+        return 0
 
     window.show()
     sys.exit(app.exec())
