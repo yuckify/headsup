@@ -10,8 +10,6 @@ class dial_display(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.x_off = 0
-        self.y_off = 20
         self.min = 0
         self.max = 100
         self.value = 30
@@ -70,6 +68,15 @@ class dial_display(QWidget):
         r.setX(r.x() + self.pad)
         r.setY(r.y() + self.pad)
 
+        # title parameters
+        title_rect = self.fm.boundingRect(self.title.text())
+        title_rect.adjust(-2, -2, 2, 2)
+        r.setY(title_rect.bottom() + self.pad)
+
+        # make sure this is a circle and not an oval, width == height
+        r.setWidth(min(r.width(), r.height()))
+        r.setHeight(min(r.width(), r.height()))
+        
         # circle parameters
         c_r = r.width()/2
         c_x = r.x() + c_r
@@ -83,7 +90,8 @@ class dial_display(QWidget):
         s_point_b = QPoint(c_x + (c_r + s_len/2)*math.cos(s_angle), c_y + (c_r + s_len/2)*math.sin(s_angle))
 
         # parameters for the gauge line
-        gauge_angle = ((self.value - self.min)/(self.max - self.min)*360)%360
+        gauge_angle = (self.value - self.min)/(self.max - self.min)*360
+        gauge_angle = min(gauge_angle, 360)
 
         p.drawArc(r, 0, 360*16)
         p.drawLine(s_point_a, s_point_b)
@@ -93,17 +101,13 @@ class dial_display(QWidget):
         p.setPen(meter_pen)
         p.drawArc(r, (360 - start_angle)*16, -gauge_angle*16)
 
-        # the label
-        # label_str = f"{self.value}"
+        # draw the value label
         label_rect = self.fm.boundingRect(self.label.text())
         label_rect.adjust(-2, -2, 2, 2)
-        # self.label.setText(label_str)
-        self.label.setGeometry(c_x - label_rect.width()/2, c_y - label_rect.height()/2, label_rect.width(), label_rect.height())
+        self.label.setGeometry(c_x - label_rect.width()/2, c_y, label_rect.width(), label_rect.height())
 
-        # title
-        title_rect = self.fm.boundingRect(self.title.text())
-        title_rect.adjust(-2, -2, 2, 2)
-        self.title.setGeometry(self.pos().x(), self.pos().y(), title_rect.width(), title_rect.height())
+        # draw the title
+        self.title.setGeometry(c_x - title_rect.width()/2, c_y - title_rect.height(), title_rect.width(), title_rect.height())
 
         p.end()
 

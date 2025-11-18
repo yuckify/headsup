@@ -44,7 +44,7 @@ elif platform.system() == "Windows":
 
 
         def update(self):
-            if (datetime.now() - self.ts).seconds < 1:
+            if (datetime.now() - self.ts).total_seconds() < 1:
                 return
             
             self.snap = self.rtss.snapshot()
@@ -65,14 +65,15 @@ elif platform.system() == "Windows":
             denom = self.game.dwTime1 - self.game.dwTime0
             if denom == 0:
                 return 0
-            return 1000.0 * self.game.dwFrames / denom
+            fps = 1000.0 * self.game.dwFrames / denom
+            return fps
         
 
         def game_name(self):
             self.update()
             if self.game is None:
                 return ""
-            return ""
+            return os.path.splitext(os.path.basename(self.game.szName))[0]
     
 
     """
@@ -288,8 +289,8 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.ui = statsgui.Ui_MainWindow()
         self.ui.setupUi(self)
+        self.sysinfo = SysInfo()
 
-        # self.showFullScreen()
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_timeout)
         self.update_timer.start(500)
@@ -304,9 +305,6 @@ class MainWindow(QMainWindow):
                 continue
             
             gui_obj = GuiObject(obj)
-            # if not gui_obj.ok():
-                # continue
-            
             self.label_objs.append(gui_obj)
         
         self.settings = Settings()
@@ -319,10 +317,8 @@ class MainWindow(QMainWindow):
     def set_fullscreen(self, fs):
         if fs:
             self.showFullScreen()
-            # self.settings.ui.fullscreen.setChecked(True)
         else:
             self.showNormal()
-            # self.settings.ui.fullscreen.setChecked(False)
 
 
     def settings_updated(self):
@@ -390,7 +386,7 @@ class MainWindow(QMainWindow):
         ram_used = round(psutil.virtual_memory().used/1e9, 1)
 
         # cpu
-        sysinfo = SysInfo()
+        # sysinfo = SysInfo()
 #        temp = psutil.sensors_temperatures()
 #        dmi = DMIDecode()
 #        cpu_temp = temp["k10temp"][0]
@@ -423,7 +419,7 @@ class MainWindow(QMainWindow):
 
             # cpu stats
             "cpu_name": cpu_name,
-            "cpu_temperature": round(sysinfo.cpu_temp(), 1),
+            "cpu_temperature": round(self.sysinfo.cpu_temp(), 1),
             "cpu_used_percent": round(psutil.cpu_percent(), 1),
             "cpu_frequency": int(psutil.cpu_freq().current),
             "cpu_frequency_max": int(psutil.cpu_freq().max),
@@ -443,8 +439,8 @@ class MainWindow(QMainWindow):
             "gpu_temperature": gpu.temperature,
 
             # game
-            "game_fps": sysinfo.game_fps(),
-            "game_name": sysinfo.game_name(),
+            "game_fps": int(self.sysinfo.game_fps()),
+            "game_name": self.sysinfo.game_name(),
         }
 
         return self.params
