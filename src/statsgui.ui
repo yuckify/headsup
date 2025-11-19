@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>553</width>
-    <height>407</height>
+    <width>728</width>
+    <height>455</height>
    </rect>
   </property>
   <property name="font">
@@ -246,6 +246,60 @@
        </widget>
       </item>
       <item>
+       <layout class="QVBoxLayout" name="verticalLayout_7">
+        <item>
+         <widget class="dial_meter" name="widget_2" native="true">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="accessibleName">
+           <string/>
+          </property>
+          <property name="accessibleDescription">
+           <string/>
+          </property>
+          <property name="title" stdset="0">
+           <string>Load</string>
+          </property>
+          <property name="format" stdset="0">
+           <string>$(cpu_used_percent)%</string>
+          </property>
+          <property name="min" stdset="0">
+           <number>0</number>
+          </property>
+          <property name="max" stdset="0">
+           <number>100</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="dial_meter" name="widget" native="true">
+          <property name="toolTip">
+           <string/>
+          </property>
+          <property name="accessibleName">
+           <string/>
+          </property>
+          <property name="accessibleDescription">
+           <string/>
+          </property>
+          <property name="title" stdset="0">
+           <string>Temp</string>
+          </property>
+          <property name="format" stdset="0">
+           <string>$(cpu_temperature)C</string>
+          </property>
+          <property name="min" stdset="0">
+           <number>30</number>
+          </property>
+          <property name="max" stdset="0">
+           <number>100</number>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
        <widget class="QFrame" name="frame_2">
         <property name="frameShape">
          <enum>QFrame::Shape::StyledPanel</enum>
@@ -410,7 +464,10 @@
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_6">
         <item>
-         <widget class="dial_display" name="gpu_used_dial" native="true">
+         <widget class="dial_meter" name="gpu_used_dial" native="true">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
           <property name="minimumSize">
            <size>
             <width>100</width>
@@ -418,18 +475,33 @@
            </size>
           </property>
           <property name="accessibleName">
-           <string>Load</string>
+           <string/>
           </property>
           <property name="accessibleDescription">
-           <string>$(gpu_used)%</string>
+           <string/>
           </property>
           <property name="accessibleIdentifier">
            <string/>
           </property>
+          <property name="title" stdset="0">
+           <string>Load</string>
+          </property>
+          <property name="format" stdset="0">
+           <string>$(gpu_used)%</string>
+          </property>
+          <property name="min" stdset="0">
+           <number>0</number>
+          </property>
+          <property name="max" stdset="0">
+           <number>100</number>
+          </property>
          </widget>
         </item>
         <item>
-         <widget class="dial_display" name="gpu_temperature_dial" native="true">
+         <widget class="dial_meter" name="gpu_temperature_dial" native="true">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
           <property name="minimumSize">
            <size>
             <width>100</width>
@@ -437,10 +509,22 @@
            </size>
           </property>
           <property name="accessibleName">
-           <string>Temp</string>
+           <string/>
           </property>
           <property name="accessibleDescription">
+           <string/>
+          </property>
+          <property name="title" stdset="0">
+           <string>Temp</string>
+          </property>
+          <property name="format" stdset="0">
            <string>$(gpu_temperature)C</string>
+          </property>
+          <property name="min" stdset="0">
+           <number>30</number>
+          </property>
+          <property name="max" stdset="0">
+           <number>100</number>
           </property>
          </widget>
         </item>
@@ -452,6 +536,12 @@
      <layout class="QHBoxLayout" name="horizontalLayout_19">
       <item>
        <widget class="QFrame" name="frame_3">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="frameShape">
          <enum>QFrame::Shape::StyledPanel</enum>
         </property>
@@ -534,6 +624,12 @@
       </item>
       <item>
        <widget class="QFrame" name="frame_4">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="frameShape">
          <enum>QFrame::Shape::StyledPanel</enum>
         </property>
@@ -622,9 +718,9 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>dial_display</class>
+   <class>dial_meter</class>
    <extends>QWidget</extends>
-   <header>dial_display</header>
+   <header>dial_meter</header>
    <container>1</container>
   </customwidget>
  </customwidgets>

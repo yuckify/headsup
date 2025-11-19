@@ -15,7 +15,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QV
 from PySide6.QtCore import QTimer, Qt, Signal, QSettings
 from PySide6.QtGui import QAction, QFont
 
-from dial_display import dial_display
+from dial_meter import dial_meter
 
 if platform.system() == "Linux":
     from dmidecode import DMIDecode
@@ -49,9 +49,20 @@ elif platform.system() == "Windows":
             
             self.snap = self.rtss.snapshot()
             self.ts = datetime.now()
+            
+            self.update_game()
 
-            if self.snap.dwLastForegroundAppProcessID != 0:
-                self.game = self.snap.arrApp[self.snap.dwLastForegroundApp]
+            
+
+        def update_game(self):
+            if self.snap.dwLastForegroundAppProcessID == 0:
+                self.game = None
+                return
+            if not psutil.pid_exists(self.snap.dwLastForegroundAppProcessID):
+                self.game = None
+                return
+
+            self.game = self.snap.arrApp[self.snap.dwLastForegroundApp]
 
 
         def cpu_temp(self):
@@ -301,7 +312,7 @@ class MainWindow(QMainWindow):
         # init the objects list
         for obj_name in dir(self.ui):
             obj = getattr(self.ui, obj_name)
-            if not isinstance(obj, QLabel) and not isinstance(obj, dial_display):
+            if not isinstance(obj, QLabel) and not isinstance(obj, dial_meter):
                 continue
             
             gui_obj = GuiObject(obj)

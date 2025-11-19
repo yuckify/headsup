@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QPushButton, QLabel, QV
 from PySide6.QtCore import QTimer, Qt, Signal, QSettings, QPoint
 from PySide6.QtGui import QAction, QFont, QPainter, QPen, QFontMetrics
 
-class dial_display(QWidget):
+class dial_meter(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -21,29 +21,18 @@ class dial_display(QWidget):
         self.title = QLabel(self)
         self.title.setFont(self.font())
 
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.update)
-        self.timer.start(500)
-
-
-    def set_limits(self, min_value, max_value):
-        self.min = min_value
-        self.max = max_value
-
-
-    def set_value(self, value):
-        self.value = value
-
 
     def set_values(self, params):
         self.label.setFont(self.font())
         self.fm = QFontMetrics(self.font())
-        self.keys = re.findall("\$\(([a-zA-Z0-9_]+)\)", self.accessibleDescription())
+        self.keys = re.findall("\$\(([a-zA-Z0-9_]+)\)", self.property("format"))
         self.value = float(params[self.keys[0]])
-        self.title.setText(self.accessibleName())
+        self.title.setText(self.property("title"))
         self.title.setFont(self.font())
+        self.min = float(self.property("min"))
+        self.max = float(self.property("max"))
 
-        display = self.accessibleDescription()
+        display = self.property("format")
         for k in self.keys:
             fmt = f"$({k})"
             display = display.replace(fmt, f"{int(params[k])}")
@@ -91,7 +80,7 @@ class dial_display(QWidget):
 
         # parameters for the gauge line
         gauge_angle = (self.value - self.min)/(self.max - self.min)*360
-        gauge_angle = min(gauge_angle, 360)
+        gauge_angle = max(min(gauge_angle, 360), 0)
 
         p.drawArc(r, 0, 360*16)
         p.drawLine(s_point_a, s_point_b)
