@@ -17,6 +17,7 @@ from PySide6.QtGui import QAction, QFont
 
 from dial_meter import dial_meter
 
+
 if platform.system() == "Linux":
     from dmidecode import DMIDecode
 
@@ -34,71 +35,7 @@ if platform.system() == "Linux":
 
 
 elif platform.system() == "Windows":
-    import pyRTSS
-
-    class SysInfo:
-        def __init__(self):
-            self.rtss = pyRTSS.RTSS()
-            self.ts = datetime.now()
-            self.game = None
-
-
-        def update(self):
-            if (datetime.now() - self.ts).total_seconds() < 1:
-                return
-            
-            self.snap = self.rtss.snapshot()
-            self.ts = datetime.now()
-            
-            self.update_game()
-
-            
-
-        def update_game(self):
-            if self.snap.dwLastForegroundAppProcessID == 0:
-                self.game = None
-                return
-            if not psutil.pid_exists(self.snap.dwLastForegroundAppProcessID):
-                self.game = None
-                return
-
-            self.game = self.snap.arrApp[self.snap.dwLastForegroundApp]
-
-
-        def cpu_temp(self):
-            return 0
-
-
-        def game_fps(self):
-            self.update()
-            if self.game is None:
-                return 0
-            denom = self.game.dwTime1 - self.game.dwTime0
-            if denom == 0:
-                return 0
-            fps = 1000.0 * self.game.dwFrames / denom
-            return fps
-        
-
-        def game_name(self):
-            self.update()
-            if self.game is None:
-                return ""
-            return os.path.splitext(os.path.basename(self.game.szName))[0]
-    
-
-    """
-    import WinTmp
-    
-    class SysInfo:
-        def __init__(self):
-            pass
-
-
-        def cpu_temp(self):
-            return WinTmp.CPU_Temp()
-    """
-
+    from windows import *
 else:
     print(f"ERROR: Unrecognized platform {platform.system()}")
     exit(-1)
@@ -135,6 +72,7 @@ py_uic("settings")
 import statsgui
 import settings
 
+
 def strtobool(s):
     if s is None:
         return False
@@ -154,7 +92,7 @@ class Option:
         self.data = None
         self.changed = False
 
-# TODO labels without variables are not scaling
+
 class Settings(QDialog):
 
     updated = Signal()
@@ -171,6 +109,7 @@ class Settings(QDialog):
             "display": Option("display", None),
             "fullscreen": Option("fullscreen", True),
             "scaling": Option("scaling", 100),
+            "startup": Option("startup", False)
         }
         self.config = QSettings("yuckify", "pystats")
 
@@ -180,6 +119,7 @@ class Settings(QDialog):
         self.ui.settings_select.itemClicked.connect(self.select_page)
         # self.ui.scaling.textChanged.connect(self.opt_scaling)
         self.ui.scaling.editingFinished.connect(self.opt_scaling)
+        self.ui.startup.stateChanged.connect(self.opt_startup)
 
 
     def init(self, changed = False):
@@ -205,12 +145,18 @@ class Settings(QDialog):
         self.options["fullscreen"].value = strtobool(self.config.value("fullscreen"))
         self.ui.fullscreen.setChecked(self.options["fullscreen"].value)
 
+        # scaling
         self.options["scaling"].changed = changed
         try:
             self.options["scaling"].value = float(self.config.value("scaling"))
         except:
             self.options["scaling"].value = 100
         self.ui.scaling.setText(str(self.options["scaling"].value))
+
+        # startup
+        self.options["startup"].changed = changed
+        self.options["startup"].value = strtobool(self.config.value("startup"))
+        self.ui.startup.setChecked(self.options["startup"].value)
 
 
     def select_page(self, column):
@@ -258,6 +204,13 @@ class Settings(QDialog):
         except:
             opt.value = 100
         opt.name = "scaling"
+    
+
+    def opt_startup(self):
+        opt = self.options["startup"]
+        opt.changed = True
+        opt.value = self.ui.startup.isChecked()
+        opt.name = "fullscreen"
 
 
 class GuiObject:
@@ -302,10 +255,6 @@ class MainWindow(QMainWindow):
         self.ui.setupUi(self)
         self.sysinfo = SysInfo()
 
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.update_timeout)
-        self.update_timer.start(500)
-
         # 
         self.label_objs = []
 
@@ -324,12 +273,23 @@ class MainWindow(QMainWindow):
         self.settings_updated()
         self.cpu_info = cpuinfo.get_cpu_info()
 
+        self.update_timer = QTimer(self)
+        self.update_timer.timeout.connect(self.update_timeout)
+        self.update_timer.start(500)
+
 
     def set_fullscreen(self, fs):
         if fs:
             self.showFullScreen()
         else:
             self.showNormal()
+
+
+    def set_startup(self, s):
+        if s == self.sysinfo.is_startup():
+            return
+        
+        self.sysinfo.set_startup(s)
 
 
     def settings_updated(self):
@@ -342,10 +302,11 @@ class MainWindow(QMainWindow):
                 self.set_display(opt.data)
             elif k == "fullscreen":
                 self.set_fullscreen(opt.value)
-                opt.changed = False
-
+            elif k == "startup":
+                self.set_startup(opt.value)
 
             opt.changed = False
+
 
     def mousePressEvent(self, event):
         if event.button() == Qt.RightButton:
@@ -471,13 +432,16 @@ def main():
 
     app = QApplication(sys.argv)
     window = MainWindow()
-    params = window.get_params()
 
     if args.list:
+        params = window.get_params()
         data = []
         for n in params:
             data.append([n, params[n]])
         print(tabulate(data, headers=["Variable", "Value"]))
+
+        window.sysinfo.set_startup(True)
+
         return 0
 
     window.show()
