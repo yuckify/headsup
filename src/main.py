@@ -16,29 +16,7 @@ from PySide6.QtCore import QTimer, Qt, Signal, QSettings
 from PySide6.QtGui import QAction, QFont
 
 from dial_meter import dial_meter
-
-
-if platform.system() == "Linux":
-    from dmidecode import DMIDecode
-
-    class SysInfo:
-        def __init__(self):
-            pass
-        
-        
-        def cpu_temp(self):
-            temp = psutil.sensors_temperatures()
-            dmi = DMIDecode()
-            cpu_temp = temp["k10temp"][0]
-            
-            return cpu_temp.current
-
-
-elif platform.system() == "Windows":
-    from windows import *
-else:
-    print(f"ERROR: Unrecognized platform {platform.system()}")
-    exit(-1)
+from sysinfo import *
 
 
 def py_uic(name):
@@ -356,12 +334,6 @@ class MainWindow(QMainWindow):
         # ram
         ram_total = round(psutil.virtual_memory().total/1e9, 1)
         ram_used = round(psutil.virtual_memory().used/1e9, 1)
-
-        # cpu
-        # sysinfo = SysInfo()
-#        temp = psutil.sensors_temperatures()
-#        dmi = DMIDecode()
-#        cpu_temp = temp["k10temp"][0]
 
         # disk
         disk_total = round(psutil.disk_usage("/").total/1e9, 1)

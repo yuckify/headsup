@@ -5,10 +5,12 @@ import pyautogui
 import subprocess
 
 import pyRTSS
+from sysinfobase import *
 
 
-class SysInfo:
+class SysInfo(SysInfoBase):
     def __init__(self):
+        super().__init__()
         self.rtss = pyRTSS.RTSS()
         self.ts = datetime.now()
         self.game = None
