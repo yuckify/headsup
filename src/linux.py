@@ -18,3 +18,19 @@ class SysInfo(SysInfoBase):
             return cpu_temp.current
 
 
+    def is_startup(self):
+        return False
+    
+    
+    def set_startup(self, value):
+        pass
+
+    
+    def game_fps(self):
+        return 0
+    
+    
+    def game_name(self):
+        return ""
+
+
